@@ -91,12 +91,12 @@ async function handlePush(d){
     tag:d.tag||kind||'unit',
     icon:ICON,badge:BADGE,
     data:{url:d.url||'./'},
-    renotify:kind==='rest-done'||kind==='test',
-    requireInteraction:false,
-    vibrate:kind==='rest-done'?[220,90,220,90,380]:[120]
+    renotify:kind==='rest-done'||kind==='rest-warn'||kind==='test',
+    requireInteraction:kind==='rest-done',   // Android keeps "go" on screen until it's seen
+    vibrate:kind==='rest-done'?[300,100,300,100,600]:kind==='rest-warn'?[160,80,160]:[120]
   };
-  // the "rest over" alert replaces the "resting until…" one
-  if(kind==='rest-done'||kind==='rest-start'){
+  // each rest alert replaces the one before it: until… → 30 seconds left → go
+  if(kind==='rest-done'||kind==='rest-start'||kind==='rest-warn'){
     try{(await self.registration.getNotifications({tag:'rest'})).forEach(n=>n.close());}catch(x){}
     opts.tag='rest';
   }
