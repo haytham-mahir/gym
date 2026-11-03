@@ -11,7 +11,7 @@
    3. Phone-only fallback for the rest alert when server notifications are off.
 
    Bump CACHE when you want every phone to drop its old saved copy. */
-const CACHE='unit-v2';
+const CACHE='unit-v3';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icons/icon-192.png','./icons/apple-touch-icon.png'];
 const LIBS=/^https:\/\/(www\.gstatic\.com\/firebasejs\/|fonts\.googleapis\.com\/|fonts\.gstatic\.com\/)/;
 const ICON='icons/icon-192.png', BADGE='icons/badge-96.png';
