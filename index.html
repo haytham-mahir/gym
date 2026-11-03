@@ -1640,7 +1640,7 @@ body::before{background:
         <input class="inp" id="su-user" type="text" placeholder="pick a handle" autocomplete="username" autocapitalize="none"
           onkeydown="if(event.key==='Enter')document.getElementById('su-pass').focus()"></div>
       <div class="fld"><label class="fld-lbl">Password</label>
-        <input class="inp" id="su-pass" type="password" placeholder="6+ characters" autocomplete="new-password"
+        <input class="inp" id="su-pass" type="password" placeholder="8+ characters" autocomplete="new-password"
           onkeydown="if(event.key==='Enter')doSignup()"></div>
       <label class="agree"><input type="checkbox" id="su-agree">
         <span>I agree to the <button type="button" class="link-btn" onclick="event.preventDefault();openTermsDoc()">Terms &amp; Community Guidelines</button>
@@ -5376,6 +5376,7 @@ async function hostSession(){
   if(!db){toast('You need a connection for this');return;}
   sessId=genCode();role='host';partner=null;editGranted=false;
   try{
+    await set(sref('hostUid'),user.uid);          // the database only lets the host and the one guest write
     await set(sref('host/profile'),pubProfile());
     await set(sref('control'),{edit:false});
     await set(sref('ended'),false);
@@ -5413,6 +5414,9 @@ async function doJoin(){
     // ended, or the host has left it — a quiet host (phone locked) is still joinable
     if(snapVal.ended||!(snapVal.host&&snapVal.host.profile)){toast('That session has ended');return;}
   }catch(e){toast('Could not join');return;}
+  // take the guest seat — refused if someone else is already in it
+  try{await withTimeout(set(ref(db,'sessions/'+code+'/guestUid'),user.uid),10000);}
+  catch(e){toast('That session already has a partner');return;}
   // park our own program before the host's lands on top of it
   myBackup=JSON.stringify(bundle());
   try{localStorage.setItem('unit-backup',myBackup);}catch(e){}
@@ -5941,7 +5945,7 @@ function authErr(e){
   const c=(e&&e.code)||'';
   if(c.includes('invalid-credential')||c.includes('user-not-found')||c.includes('wrong-password'))return 'That email or password is not right.';
   if(c.includes('email-already'))return 'An account already uses that email. Try signing in.';
-  if(c.includes('weak-password'))return 'Use at least 6 characters for your password.';
+  if(c.includes('weak-password')||c.includes('password-does-not-meet'))return 'Use at least 8 characters for your password.';
   if(c.includes('invalid-email'))return 'That email address is not valid.';
   if(c.includes('network'))return 'No connection. Check your network and try again.';
   if(c.includes('too-many'))return 'Too many attempts. Wait a minute, then try again.';
@@ -5987,7 +5991,7 @@ async function doSignup(){
   if(!first||!email||!uname||!pass){err.textContent='Fill in your name, email, username and password.';return;}
   if(!/^[a-z0-9_.]{3,20}$/.test(uname)){err.textContent='Usernames use 3-20 letters, numbers, dots or underscores.';return;}
   if(!modCheck(first+' '+last+' '+uname.replace(/[_.]/g,' ')).ok){err.textContent='That name or username isn\'t allowed. Pick another.';return;}
-  if(pass.length<6){err.textContent='Use at least 6 characters for your password.';return;}
+  if(pass.length<8){err.textContent='Use at least 8 characters for your password.';return;}
   if(!document.getElementById('su-agree').checked){err.textContent='Tick the box to agree to the Terms and Community Guidelines.';return;}
   if(!auth){err.textContent='Cannot reach the server right now.';return;}
   busy('Creating your account');
