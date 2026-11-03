@@ -676,6 +676,20 @@ body::after{
   color:var(--txt);font-family:'Geist Mono',monospace;font-size:13px;font-weight:600;cursor:pointer;transition:.2s}
 .fst-b:active{transform:scale(.92)}
 .fst-b.skip{background:var(--molten);border-color:transparent;color:#150E00;font-weight:700}
+/* the one-time "turn on notifications" card under the timer */
+.fst-ask{position:relative;margin-top:24px;width:100%;max-width:340px;padding:14px 14px 12px;border-radius:16px;
+  background:var(--surf2);border:1px solid var(--line2);text-align:left;animation:fadeUp .4s var(--ez-out)}
+.fst-ask[hidden]{display:none}
+.fst-ask-t{font-weight:700;font-size:14px;color:var(--txt);margin-bottom:4px;letter-spacing:-.01em}
+.fst-ask-s{font-size:12.5px;color:var(--txt3);line-height:1.45}
+.fst-ask-a{display:flex;gap:8px;margin-top:11px}
+.fst-ask-b{flex:1;padding:11px 10px;border-radius:12px;border:1px solid var(--line2);background:transparent;color:var(--txt);
+  font-family:inherit;font-weight:600;font-size:13px;cursor:pointer}
+.fst-ask-b.pri{background:var(--molten);border-color:transparent;color:#150E00;font-weight:700}
+.fst-ask-b:disabled{opacity:.6}
+.fst-ask-b:active{transform:scale(.96)}
+@media (max-height:700px){.fst-ex{margin-bottom:18px}.fst-a{margin-top:24px}.fst-ask{margin-top:16px}}
+.sheet-bd.over-timer{z-index:9300}
 
 /* ═══════════════════════════════════════════════════════════
    ONBOARDING
@@ -1755,6 +1769,7 @@ body::before{background:
     <button class="fst-b skip" onclick="skipTimer()">Skip</button>
     <button class="fst-b" onclick="adjustTimer(15)">+15s</button>
   </div>
+  <div class="fst-ask" id="fst-ask" hidden></div>
 </div>
 
 <!-- ═══════════ CONNECTION MOMENT ═══════════ -->
@@ -4211,7 +4226,7 @@ function closeSheet(){
   const bd=document.getElementById('sheet-bd');
   bd.classList.remove('active');
   // drop the lift only once it has slid away, or it snaps behind the profile
-  setTimeout(()=>{if(!bd.classList.contains('active'))bd.classList.remove('over');},400);
+  setTimeout(()=>{if(!bd.classList.contains('active'))bd.classList.remove('over','over-timer');},400);
 }
 
 function promptSheet(title,sub,ph,cb){
@@ -4616,6 +4631,7 @@ async function startRest(secs,name,next){
   initAudio();lockScreen();notify(secs);
   restSignal();
   if(sessId)pushTimer();
+  askOnRest();
 }
 function tick(){if(Math.ceil((tEnd-Date.now())/1000)<=0)endRest();else paintTimer();}
 function paintTimer(){
@@ -4894,6 +4910,75 @@ function openPushSheet(){
   openSheet(`<div class="sheet-t">Lock-screen notifications</div>
     <div class="sheet-s">Rest timer and Hub alerts, even when your phone is locked.</div>${body}
     ${PUSH.on||s.ok?'':`<div class="sheet-a"><button class="btn btn-full" onclick="closeSheet()">Done</button></div>`}`);
+}
+/* ── asking at the moment it matters ──
+   The first rest timer with notifications off shows one card inside the
+   timer. "Not now" waits three training days before asking again, and after
+   three asks it stops (the switch under You → Notifications always stays).
+   The phone's own Allow prompt only appears straight from a tap, so the
+   card's button is what asks. */
+const ASK_KEY='unit-push-ask';
+function askState(){try{return JSON.parse(localStorage.getItem(ASK_KEY)||'{}')||{};}catch(e){return {};}}
+function askSave(st){try{localStorage.setItem(ASK_KEY,JSON.stringify(st));}catch(e){}}
+function askWhy(){
+  if(PUSH.on||!user||role==='guest')return '';
+  const s=notifState();
+  if(s.ok)return 'ask';
+  if(s.why==='install'&&isIOS())return 'install';   // iPhone in Safari: Home Screen first
+  return '';                                       // blocked, unsupported, not set up
+}
+function askDue(st){
+  const n=st.n|0;
+  if(n>=3)return false;
+  return !n||(st.d||[]).length>=3;
+}
+function askOnRest(){
+  const el=document.getElementById('fst-ask');if(!el)return;
+  const why=askWhy(),st=askState();
+  // count training days since the last "Not now"
+  if(why&&(st.n|0)>0){const t=todayStr();st.d=st.d||[];if(!st.d.includes(t)){st.d.push(t);askSave(st);}}
+  if(!why||!askDue(st)){el.hidden=true;return;}
+  const head=`<div class="fst-ask-t">🔔 Get “Rest over” on your lock screen</div>`;
+  el.innerHTML=why==='ask'
+    ?`${head}<div class="fst-ask-s">Lock your phone mid-rest and UNIT still tells you when to go, and what's next.</div>
+      <div class="fst-ask-a"><button class="fst-ask-b" onclick="askLater()">Not now</button>
+        <button class="fst-ask-b pri" id="ask-go" onclick="askTurnOn()">Turn on</button></div>`
+    :`${head}<div class="fst-ask-s">iPhone only sends alerts to apps on the Home Screen. Add UNIT there first — it takes three taps.</div>
+      <div class="fst-ask-a"><button class="fst-ask-b" onclick="askLater()">Not now</button>
+        <button class="fst-ask-b pri" onclick="askInstall()">Show me how</button></div>`;
+  el.hidden=false;
+}
+function askLater(){
+  const st=askState();st.n=(st.n|0)+1;st.d=[];askSave(st);
+  const el=document.getElementById('fst-ask');if(el)el.hidden=true;
+  buzz(8);
+}
+function askNote(t,s,ms){
+  const el=document.getElementById('fst-ask');if(!el)return;
+  el.innerHTML=`<div class="fst-ask-t">${t}</div><div class="fst-ask-s">${s}</div>`;
+  setTimeout(()=>{el.hidden=true;},ms||4500);
+}
+async function askTurnOn(){
+  const b=document.getElementById('ask-go');if(b){b.disabled=true;b.textContent='Turning on…';}
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){
+      askNote('Notifications weren’t allowed','You can switch them on any time under You → Notifications.');
+      return;
+    }
+    await registerPush();
+    buzz([14,40,14]);
+    restSignal();                       // this rest counts already
+    askNote('✓ Notifications are on','Lock your phone now and you’ll get “Rest over” when it’s time.',5000);
+    if(tab==='profile'||tab==='train')render();
+  }catch(e){
+    if(b){b.disabled=false;b.textContent='Try again';}
+    toast(e&&e.message==='unsupported'?'This browser can’t receive notifications':'Could not turn notifications on — try again');
+  }
+}
+function askInstall(){
+  document.getElementById('sheet-bd').classList.add('over-timer');
+  openInstallSheet();
 }
 /* One nudge on the Train screen, once the app is installed. */
 function pushNudge(){
@@ -8390,7 +8475,9 @@ Object.assign(window,{
   // lock-screen notifications
   enablePush,disablePush,setPushPref,sendTestPush,openPushSheet,dismissNudge,
   // add to Home Screen
-  openInstallSheet,installNow,installLater,copyAppLink,a2hsTab,a2hsBrowserPick,a2hsHand,a2hsCoach,a2hsCoachClose
+  openInstallSheet,installNow,installLater,copyAppLink,a2hsTab,a2hsBrowserPick,a2hsHand,a2hsCoach,a2hsCoachClose,
+  // asking for notifications from the rest timer
+  askLater,askTurnOn,askInstall
 });
 
 /* ═══════════════════════════════════════════════════════════
