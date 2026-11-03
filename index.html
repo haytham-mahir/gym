@@ -1818,6 +1818,7 @@ body::before{background:
 
 <script type="module" onerror="window.__bootFail&&window.__bootFail()">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js';
 import { getDatabase, ref, set, onValue, off, get, onDisconnect, remove,
          update, push, child, query, orderByChild, orderByKey, limitToLast, limitToFirst,
          startAt, endAt, endBefore, equalTo, onChildAdded, serverTimestamp, runTransaction }
@@ -1837,7 +1838,13 @@ const firebaseConfig={
   appId:"1:930734468354:web:5fb495b8bb74cac498a61b"
 };
 let db=null,auth=null,fbApp=null;
-try{fbApp=initializeApp(firebaseConfig);db=getDatabase(fbApp);auth=getAuth(fbApp);}
+/* App Check: every request carries proof that it comes from this app on
+   unitfit.pages.dev, not a script. The site key is public by design. */
+const APPCHECK_KEY='6LduJQ0uAAAAAKHxlGLjaOnrWm2VJst_cqawbiNn';
+try{fbApp=initializeApp(firebaseConfig);
+  try{initializeAppCheck(fbApp,{provider:new ReCaptchaEnterpriseProvider(APPCHECK_KEY),isTokenAutoRefreshEnabled:true});}
+  catch(e){console.warn('App Check unavailable',e);}
+  db=getDatabase(fbApp);auth=getAuth(fbApp);}
 catch(e){console.warn('Firebase unavailable',e);}
 
 /* ── Things to fill in before launch ─────────────────────────
