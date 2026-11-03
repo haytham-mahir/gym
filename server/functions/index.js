@@ -158,6 +158,16 @@ exports.hubPush = onValueCreated({...DB, ref: '/notif/{uid}/{nid}'}, async (even
   if (!(await prefsOf(uid)).hub) return;
   // someone they've blocked doesn't get to buzz their phone
   if (n.u && (await db().ref(`users/${uid}/blocked/${n.u}`).get()).exists()) return;
+  // one person can buzz another's phone at most 5 times in 10 minutes
+  if (n.u) {
+    const res = await db().ref(`users/${uid}/push/rl/${n.u}`).transaction((v) => {
+      const now = Date.now();
+      const w = v && now - v.s < 10 * 60 * 1000 ? v : {s: now, c: 0};
+      if (w.c >= 5) return;                // over the limit: leave it, send nothing
+      return {s: w.s, c: w.c + 1};
+    });
+    if (!res.committed) return;
+  }
   const {title, body} = hubText(n);
   await sendTo(uid, {kind: 'hub', tag: `hub-${event.params.nid}`, title, body, url: './#hub'}, {ttl: 86400});
 });
