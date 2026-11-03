@@ -4693,7 +4693,7 @@ async function setupSW(){
   const local=/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   if(location.protocol!=='https:'&&!local)return;
   try{
-    swReg=await (()=>Promise.reject('preview'))||navigator.serviceWorker.register('sw.js');
+    swReg=await navigator.serviceWorker.register('sw.js');
     await navigator.serviceWorker.ready;
     swReg=(await navigator.serviceWorker.getRegistration())||swReg;
   }catch(e){swReg=null;}
@@ -4762,9 +4762,11 @@ async function saveToken(tok){
   try{localStorage.setItem(pushLocalKey(),k);}catch(e){}
 }
 async function registerPush(){
-  const reg=await navigator.serviceWorker.ready;
-  const {m,inst}=await messaging();
-  const tok=await m.getToken(inst,{vapidKey:VAPID_KEY,serviceWorkerRegistration:reg});
+  // make sure the worker that receives pushes is installed, and never wait on it for ever
+  try{await navigator.serviceWorker.register('sw.js');}catch(e){}
+  const reg=await withTimeout(navigator.serviceWorker.ready,15000);
+  const {m,inst}=await withTimeout(messaging(),15000);
+  const tok=await withTimeout(m.getToken(inst,{vapidKey:VAPID_KEY,serviceWorkerRegistration:reg}),25000);
   if(!tok)throw new Error('no-token');
   await saveToken(tok);
 }
