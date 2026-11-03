@@ -1115,7 +1115,8 @@ body::after{
 /* the little phone that shows where the first button is */
 .a2hs-ph{position:relative;width:30px;height:52px;border:2px solid var(--line2);border-radius:8px;flex-shrink:0;
   background:linear-gradient(var(--surf2),var(--surf2)) no-repeat;background-size:100% 8px}
-.a2hs-ph.bot-c,.a2hs-ph.bot-r{background-position:0 100%}
+.a2hs-ph.bot-c,.a2hs-ph.bot-r,.a2hs-ph.bot-l{background-position:0 100%}
+.a2hs-ph.bot-l i{bottom:2px;left:5px}
 .a2hs-ph i{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--gold);animation:a2hsPing 1.6s ease-out infinite}
 .a2hs-ph.top-r i{top:2px;right:3px}
 .a2hs-ph.bot-r i{bottom:2px;right:3px}
@@ -1137,8 +1138,9 @@ body::after{
   filter:drop-shadow(0 2px 6px rgba(0,0,0,.45))}
 .a2hs-arrow.bot-c{left:50%;bottom:calc(var(--sab) + 14px);transform:translateX(-50%)}
 .a2hs-arrow.bot-r{right:14px;bottom:calc(var(--sab) + 14px);align-items:flex-end}
+.a2hs-arrow.bot-l{left:29%;bottom:calc(var(--sab) + 8px);transform:translateX(-50%);white-space:nowrap}
 .a2hs-arrow.top-r{right:14px;top:calc(var(--sat) + 10px);flex-direction:column-reverse;align-items:flex-end}
-.a2hs-arrow.bot-c svg,.a2hs-arrow.bot-r svg{animation:a2hsBobD 1.1s ease-in-out infinite}
+.a2hs-arrow.bot-c svg,.a2hs-arrow.bot-r svg,.a2hs-arrow.bot-l svg{animation:a2hsBobD 1.1s ease-in-out infinite}
 .a2hs-arrow.top-r svg{animation:a2hsBobU 1.1s ease-in-out infinite}
 @keyframes a2hsBobD{0%,100%{transform:translateY(0)}50%{transform:translateY(9px)}}
 @keyframes a2hsBobU{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
@@ -4963,8 +4965,8 @@ const A2HS_STEPS={
     `Tap ${G_SHARE} <b>Share</b> at the bottom<i>Don't see it? Tap ${G_DOTS} first</i>`,
     `Scroll down, tap ${G_ADD} <b>Add to Home Screen</b>`,
     `Tap <b>Add</b>`]},
-  'ios26-safari':{at:'bot-r',arrow:'Tap ••• here, then Share',steps:[
-    `Tap ${G_DOTS} at the bottom right, then ${G_SHARE} <b>Share</b>`,
+  'ios26-safari':{at:'bot-l',arrow:'Tap ≡ here, then Share',steps:[
+    `Tap ${G_LINES} on the left of the address bar, then ${G_SHARE} <b>Share</b><i>See ${G_DOTS} at the bottom right instead? Tap that</i>`,
     `Scroll down, tap ${G_ADD} <b>Add to Home Screen</b><i>Not in the list? Tap <b>View More</b> first</i>`,
     `Keep <b>Open as Web App</b> on, then tap <b>Add</b>`]},
   'ipad-safari':{at:'top-r',arrow:'Tap Share up here',steps:[
