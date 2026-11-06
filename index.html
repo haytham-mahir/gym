@@ -1390,6 +1390,14 @@ body::before{background:
   background:var(--card);border-radius:12px;padding:9px 12px;margin-bottom:8px}
 .ex-last b{color:var(--txt);font-weight:600;font-family:'Geist Mono',monospace;font-size:12px}
 .ex-last .up{color:var(--green);font-weight:600}
+.ex-coach{font-size:12px;line-height:1.45;color:var(--txt2);padding:0 4px;margin:-2px 0 9px}
+.ex-coach.coach-up{color:var(--green)}
+.ex-coach.coach-down{color:var(--gold)}
+.tag.up.coach-reps{background:var(--card);color:var(--txt2)}
+.tag.up.coach-down{background:var(--gold-d1);color:var(--gold)}
+.ex-last .up.coach-reps{color:var(--txt)}
+.ex-last .up.coach-down{color:var(--gold)}
+.si::placeholder{color:var(--txt3);opacity:1}
 
 /* ── forms ── */
 .fld-lbl{font-family:'Geist',sans-serif;font-size:12.5px;letter-spacing:0;text-transform:none;font-weight:600;color:var(--txt2);margin-bottom:7px}
@@ -2690,7 +2698,7 @@ function histOwed(){return Object.keys(histQ).length>0;}
 function hasVal(x){return x!==undefined&&x!==null&&String(x).trim()!=='';}
 // the numbers a set counts with: what was typed, else what was pre-filled from last time
 function setVals(d,ei,si){
-  const e=(EX[d]||[])[ei]||{},s=(e.sets||[])[si]||{},v=ws[setKey(d,ei,si)]||{};
+  const s=coachSet(d,ei,si),v=ws[setKey(d,ei,si)]||{};
   const w=hasVal(v.w)?v.w:(hasVal(s.w)?s.w:''),r=hasVal(v.r)?v.r:(hasVal(s.r)?s.r:'');
   return{w:Math.max(0,num(w)),r:Math.max(0,Math.round(num(r))),hasW:num(w)>0,hasR:num(r)>0};
 }
@@ -3213,10 +3221,10 @@ function exHTML(d,e,ei){
     return `<div class="set${v.done?' done':''}">
       <div class="set-n">${String(si+1).padStart(2,'0')}</div>
       <div class="set-f">
-        <input class="si si-w" type="number" inputmode="decimal" placeholder="${esc(s.w||'wt')}" value="${esc(v.w??'')}"
+        <input class="si si-w" type="number" inputmode="decimal" placeholder="${esc(coachSet(d,ei,si).w||'wt')}" value="${esc(v.w??'')}"
           data-live="${k}|w" oninput="liveType('${k}','w',this.value)"
           onchange="setField('${k}','w',this.value)" onclick="event.stopPropagation()">
-        <input class="si" type="number" inputmode="numeric" placeholder="${esc(s.r||'reps')}" value="${esc(v.r??'')}"
+        <input class="si" type="number" inputmode="numeric" placeholder="${esc(coachSet(d,ei,si).r||'reps')}" value="${esc(v.r??'')}"
           data-live="${k}|r" oninput="liveType('${k}','r',this.value)"
           onchange="setField('${k}','r',this.value)" onclick="event.stopPropagation()">
       </div>
@@ -3294,7 +3302,7 @@ function toggleSet(d,ei,si,el){
     /* Ticking a set with empty boxes means "did it as shown" — the greyed
        numbers are last time's. Write them in, so what is logged is what
        you can see. */
-    const s=((EX[d]||[])[ei]||{}).sets?.[si]||{};
+    const s=coachSet(d,ei,si);
     const ins=row?row.querySelectorAll('.si'):[];
     if(!hasVal(ws[k].w)&&hasVal(s.w)){ws[k].w=s.w;if(ins[0])ins[0].value=s.w;}
     if(!hasVal(ws[k].r)&&hasVal(s.r)){ws[k].r=s.r;if(ins[1])ins[1].value=s.r;}
@@ -8725,6 +8733,78 @@ function pmAim(e,last){
   return `${fmtW(top)} × ${minR+1}`;
 }
 
+/* ── coach: a weight and reps for every set ─────────────────
+   Double progression, worked out from the last time you did the exercise.
+   · Inside the rep range: same weight, one more rep on each set.
+   · Every working set at the top of the range: the weight goes up one step
+     and reps start again at the bottom. That is "comfortable" proven by the
+     numbers, not a feeling. Three or more reps past the top on every set:
+     two steps.
+   · Well short of the range (2+ reps under the bottom on every set): one step
+     down, so the range can be owned before pushing again.
+   Warm-ups and drop sets (anything under 85% of the top weight) don't count.
+   Bodyweight moves add reps, then ask for added weight. */
+function coachRange(e){
+  const rr=String(e.reps||'').match(/(\d+)\s*[-–to]+\s*(\d+)/);
+  if(rr)return[+rr[1],+rr[2]];
+  const n=parseInt(e.reps,10);return n?[n,n]:[8,12];
+}
+function coachStep(name){
+  const big=/squat|leg press|hack|deadlift|romanian|rdl|rack pull|hip thrust/i.test(String(name||''));
+  return unit()==='kg'?(big?5:2.5):(big?10:5);
+}
+const coachCache={k:'',m:{}};
+function coachFor(e){
+  if(!e||!e.n)return null;
+  const P=pmPerf()[exKey(e.n)];
+  if(!P||!P.last||!P.last.sets.length)return null;
+  const sig=exKey(e.n)+'|'+P.last.dt+'|'+e.reps+'|'+(e.sets||[]).length+'|'+unit();
+  if(coachCache.m[sig])return coachCache.m[sig];
+  const [lo,hi]=coachRange(e),n=Math.max(1,(e.sets||[]).length),u=unit();
+  const last=P.last.sets.filter(p=>p[1]>0);
+  let out;
+  if(!last.length)return null;
+  const top=Math.max(...last.map(p=>p[0]));
+  if(top<=0){                                   // bodyweight
+    const rs=last.map(p=>p[1]);
+    if(rs.every(r=>r>=hi)){
+      out={kind:'up',sets:Array.from({length:n},()=>({w:'',r:lo})),
+        tag:'+'+fmtW(coachStep(e.n))+' '+u,msg:`You hit ${hi}+ on every set — add ${fmtW(coachStep(e.n))} ${u} (belt or dumbbell) and start at ${lo}.`};
+    }else{
+      const t=i=>Math.min(hi,Math.max(lo,(rs[i]??rs[rs.length-1])+1));
+      out={kind:'reps',sets:Array.from({length:n},(_,i)=>({w:'',r:t(i)})),
+        tag:Array.from({length:n},(_,i)=>t(i)).join(' · ')+' reps',msg:`Beat last time by a rep on each set.`};
+    }
+  }else{
+    const work=last.filter(p=>p[0]>=top*0.85);
+    const atTop=work.filter(p=>p[0]===top);
+    const step=coachStep(e.n);
+    if(atTop.length===work.length&&work.every(p=>p[1]>=hi)){
+      const jump=work.every(p=>p[1]>=hi+3)?2:1,w=top+step*jump;
+      out={kind:'up',sets:Array.from({length:n},()=>({w,r:lo})),tag:`${fmtW(w)} × ${lo}`,
+        msg:`Level up: ${fmtW(top)} hit ${hi}+ on every set. Go ${fmtW(w)} ${u} and build back from ${lo}.`};
+    }else if(work.every(p=>p[1]<=lo-2)){
+      const w=Math.max(step,top-step);
+      out={kind:'down',sets:Array.from({length:n},()=>({w,r:lo})),tag:`${fmtW(w)} × ${lo}`,
+        msg:`${fmtW(top)} fell short of ${lo} reps. Drop to ${fmtW(w)} ${u}, own the range, then climb.`};
+    }else{
+      const rs=work.map(p=>p[0]===top?p[1]:Math.max(lo-1,p[1]-2));   // lighter sets count as a bit fewer reps at the top weight
+      // sets you didn't do at this weight last time start at the bottom of the range
+      const t=i=>i<rs.length?Math.min(hi,Math.max(lo,rs[i]+1)):lo;
+      const reps=Array.from({length:n},(_,i)=>t(i));
+      out={kind:'reps',sets:reps.map(r=>({w:top,r})),tag:`${fmtW(top)} × ${reps[0]}`,
+        msg:`Stay at ${fmtW(top)} ${u} — reps to beat: ${reps.join(', ')}. At ${hi} on every set, the weight goes up.`};
+    }
+  }
+  coachCache.m[sig]=out;
+  return out;
+}
+/* What a set shows greyed out, and what ticking it empty logs. */
+function coachSet(d,ei,si){
+  const e=(EX[d]||[])[ei]||{},s=(e.sets||[])[si]||{},c=coachFor(e),t=c&&c.sets[si];
+  return{w:t&&t.w!==''?String(t.w):(s.w||''),r:t?String(t.r):(s.r||'')};
+}
+
 /* ── fuel: today's food log ────────────────────────────── */
 function pmQ(){const q=PREFS.qlog;return {date:(q&&q.date)||'',items:toArr(q&&q.items)};}
 const pmItemDate=i=>i.d||(i.ts?dstr(new Date(num(i.ts))):todayStr());
@@ -9238,11 +9318,14 @@ exHTML=function(d,e,ei){
   let h=_exHTML(d,e,ei);
   const P=pmPerf()[exKey(e.n)];
   if(!P||!P.last)return h;
-  const u=unit(),L=P.last,aim=pmAim(e,L);
+  const L=P.last,c=coachFor(e);
   const lastTxt=L.sets.map(p=>(p[0]?fmtW(Math.round(p[0]*10)/10):'bw')+'×'+(p[1]||'?')).join(', ');
-  if(aim)h=h.replace('<div class="ex-m">',`<div class="ex-m"><span class="tag up"><svg class="tag-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>${esc(aim)}</span>`);
+  const ICO={up:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',reps:'<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>',down:'<path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/>'};
+  const plan=c?c.sets.map(t=>(t.w!==''?fmtW(t.w)+'×':'')+t.r).join(', '):'';
+  if(c)h=h.replace('<div class="ex-m">',`<div class="ex-m"><span class="tag up coach-${c.kind}"><svg class="tag-ico" viewBox="0 0 24 24" aria-hidden="true">${ICO[c.kind]}</svg>${esc(c.tag)}</span>`);
   h=h.replace('<div class="sets">',`<div class="ex-last"><span>Last · ${esc(fmtDate(L.dt,{month:'short',day:'numeric'}))}<br><b>${esc(lastTxt)}</b></span>
-    ${aim?`<span style="text-align:right">Aim for<br><b class="up">${esc(aim)}</b></span>`:''}</div><div class="sets">`);
+    ${c?`<span style="text-align:right">Today<br><b class="up coach-${c.kind}">${esc(plan)}</b></span>`:''}</div>
+    ${c?`<div class="ex-coach coach-${c.kind}">${esc(c.msg)}</div>`:''}<div class="sets">`);
   return h;
 };
 
