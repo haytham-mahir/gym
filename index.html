@@ -1371,7 +1371,8 @@ body::before{background:
 .ex-m{gap:5px;margin-top:6px}
 .tag{font-family:'Geist',sans-serif;font-size:11px;font-weight:550;padding:3px 8px;border-radius:99px;background:var(--card);color:var(--txt3)}
 .tag.g{background:var(--gold-d1);color:var(--gold)}
-.tag.up{background:var(--green-d);color:var(--green)}
+.tag.up{background:var(--green-d);color:var(--green);display:inline-flex;align-items:center;gap:4px}
+.tag-ico{width:12px;height:12px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
 .tag.last{background:var(--card);color:var(--txt2)}
 .ex-p{font-family:'Geist Mono',monospace;font-size:12px;color:var(--txt3)}
 .ex-in{padding:0 12px 12px}
@@ -9239,7 +9240,7 @@ exHTML=function(d,e,ei){
   if(!P||!P.last)return h;
   const u=unit(),L=P.last,aim=pmAim(e,L);
   const lastTxt=L.sets.map(p=>(p[0]?fmtW(Math.round(p[0]*10)/10):'bw')+'×'+(p[1]||'?')).join(', ');
-  if(aim)h=h.replace('<div class="ex-m">',`<div class="ex-m"><span class="tag up">↗ ${esc(aim)}</span>`);
+  if(aim)h=h.replace('<div class="ex-m">',`<div class="ex-m"><span class="tag up"><svg class="tag-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>${esc(aim)}</span>`);
   h=h.replace('<div class="sets">',`<div class="ex-last"><span>Last · ${esc(fmtDate(L.dt,{month:'short',day:'numeric'}))}<br><b>${esc(lastTxt)}</b></span>
     ${aim?`<span style="text-align:right">Aim for<br><b class="up">${esc(aim)}</b></span>`:''}</div><div class="sets">`);
   return h;
