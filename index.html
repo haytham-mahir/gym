@@ -8779,8 +8779,9 @@ function coachFor(e){
     const work=last.filter(p=>p[0]>=top*0.85);
     const atTop=work.filter(p=>p[0]===top);
     const step=coachStep(e.n);
-    if(atTop.length===work.length&&work.every(p=>p[1]>=hi)){
-      const jump=work.every(p=>p[1]>=hi+3)?2:1,w=top+step*jump;
+    // a weight increase needs proof from at least two working sets; double steps only on heavier weights
+    if(work.length>=Math.min(2,n)&&atTop.length===work.length&&work.every(p=>p[1]>=hi)){
+      const jump=work.every(p=>p[1]>=hi+3)&&top>=step*10?2:1,w=top+step*jump;
       out={kind:'up',sets:Array.from({length:n},()=>({w,r:lo})),tag:`${fmtW(w)} × ${lo}`,
         msg:`Level up: ${fmtW(top)} hit ${hi}+ on every set. Go ${fmtW(w)} ${u} and build back from ${lo}.`};
     }else if(work.every(p=>p[1]<=lo-2)){
